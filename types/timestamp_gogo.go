@@ -30,7 +30,7 @@ package types
 
 import (
 	"fmt"
-	io "io"
+	"io"
 	"time"
 )
 

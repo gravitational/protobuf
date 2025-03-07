@@ -100,13 +100,23 @@ func validateTime(seconds int64, nanos int32) error {
 }
 
 func StdTimeMarshal(t time.Time) ([]byte, error) {
-	ts, err := TimestampProto(t)
-	if err != nil {
+	seconds := t.Unix()
+	nanos := int32(t.Nanosecond())
+
+	if err := validateTime(seconds, nanos); err != nil {
 		return nil, err
 	}
 
-	buf := make([]byte, ts.Size())
-	_, err = ts.MarshalTo(buf)
+	var n int
+	if seconds != 0 {
+		n += 1 + sovTimestamp(uint64(seconds))
+	}
+	if nanos != 0 {
+		n += 1 + sovTimestamp(uint64(nanos))
+	}
+
+	buf := make([]byte, n)
+	_, err := StdTimeMarshalTo(t, buf)
 	return buf, err
 }
 

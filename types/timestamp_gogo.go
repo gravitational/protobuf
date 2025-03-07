@@ -29,6 +29,7 @@
 package types
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -82,6 +83,22 @@ func SizeOfStdTime(t time.Time) int {
 	return n
 }
 
+func validateTime(seconds int64, nanos int32) error {
+	if seconds < minValidSeconds {
+		t := time.Unix(seconds, int64(nanos)).UTC()
+		return fmt.Errorf("timestamp: %#v before 0001-01-01", t)
+	}
+	if seconds >= maxValidSeconds {
+		t := time.Unix(seconds, int64(nanos)).UTC()
+		return fmt.Errorf("timestamp: %#v after 10000-01-01", t)
+	}
+	if nanos < 0 || nanos >= 1e9 {
+		t := time.Unix(seconds, int64(nanos)).UTC()
+		return fmt.Errorf("timestamp: %#v: nanos not in range [0, 1e9)", t)
+	}
+	return nil
+}
+
 func StdTimeMarshal(t time.Time) ([]byte, error) {
 	ts, err := TimestampProto(t)
 	if err != nil {
@@ -94,11 +111,35 @@ func StdTimeMarshal(t time.Time) ([]byte, error) {
 }
 
 func StdTimeMarshalTo(t time.Time, data []byte) (int, error) {
-	ts, err := TimestampProto(t)
-	if err != nil {
+	seconds := t.Unix()
+	nanos := int32(t.Nanosecond())
+
+	if err := validateTime(seconds, nanos); err != nil {
 		return 0, err
 	}
-	return ts.MarshalTo(data)
+
+	var n int
+	if seconds != 0 {
+		n += 1 + sovTimestamp(uint64(seconds))
+	}
+	if nanos != 0 {
+		n += 1 + sovTimestamp(uint64(nanos))
+	}
+
+	dAtA := data[:n]
+	i := len(dAtA)
+
+	if nanos != 0 {
+		i = encodeVarintTimestamp(dAtA, i, uint64(nanos))
+		i--
+		dAtA[i] = 0x10
+	}
+	if seconds != 0 {
+		i = encodeVarintTimestamp(dAtA, i, uint64(seconds))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func StdTimeUnmarshal(t *time.Time, data []byte) error {

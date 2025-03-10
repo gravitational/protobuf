@@ -58,8 +58,11 @@ func NewPopulatedStdTime(r interface {
 }
 
 func SizeOfStdTime(t time.Time) int {
-	ts, err := TimestampProto(t)
-	if err != nil {
+	ts := &Timestamp{
+		Seconds: t.Unix(),
+		Nanos:   int32(t.Nanosecond()),
+	}
+	if err := validateTimestamp(ts); err != nil {
 		return 0
 	}
 	return ts.Size()
@@ -73,8 +76,11 @@ func StdTimeMarshal(t time.Time) ([]byte, error) {
 }
 
 func StdTimeMarshalTo(t time.Time, data []byte) (int, error) {
-	ts, err := TimestampProto(t)
-	if err != nil {
+	ts := &Timestamp{
+		Seconds: t.Unix(),
+		Nanos:   int32(t.Nanosecond()),
+	}
+	if err := validateTimestamp(ts); err != nil {
 		return 0, err
 	}
 	return ts.MarshalTo(data)
@@ -85,10 +91,9 @@ func StdTimeUnmarshal(t *time.Time, data []byte) error {
 	if err := ts.Unmarshal(data); err != nil {
 		return err
 	}
-	tt, err := TimestampFromProto(ts)
-	if err != nil {
+	if err := validateTimestamp(ts); err != nil {
 		return err
 	}
-	*t = tt
+	*t = time.Unix(ts.Seconds, int64(ts.Nanos)).UTC()
 	return nil
 }

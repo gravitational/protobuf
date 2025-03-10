@@ -63,13 +63,13 @@ func validateTimestamp(ts *Timestamp) error {
 		return errors.New("timestamp: nil Timestamp")
 	}
 	if ts.Seconds < minValidSeconds {
-		return fmt.Errorf("timestamp: %#v before 0001-01-01", ts)
+		return fmt.Errorf("timestamp: seconds %d before 0001-01-01", ts.Seconds)
 	}
 	if ts.Seconds >= maxValidSeconds {
-		return fmt.Errorf("timestamp: %#v after 10000-01-01", ts)
+		return fmt.Errorf("timestamp: seconds %d after 10000-01-01", ts.Seconds)
 	}
 	if ts.Nanos < 0 || ts.Nanos >= 1e9 {
-		return fmt.Errorf("timestamp: %#v: nanos not in range [0, 1e9)", ts)
+		return fmt.Errorf("timestamp: nanos %d not in range [0, 1e9)", ts.Nanos)
 	}
 	return nil
 }

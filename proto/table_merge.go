@@ -600,26 +600,28 @@ func (mi *mergeInfo) computeMergeInfo() {
 					}
 					dm := dst.asPointerTo(tf).Elem()
 					if dm.IsNil() {
-						dm.Set(reflect.MakeMap(tf))
+						dm.Set(reflect.MakeMapWithSize(tf, sm.Len()))
 					}
 
 					switch tf.Elem().Kind() {
 					case reflect.Ptr: // Proto struct (e.g., *T)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
+						iter := sm.MapRange()
+						for iter.Next() {
+							val := iter.Value()
 							val = reflect.ValueOf(Clone(val.Interface().(Message)))
-							dm.SetMapIndex(key, val)
+							dm.SetMapIndex(iter.Key(), iter.Value())
 						}
 					case reflect.Slice: // E.g. Bytes type (e.g., []byte)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
+						iter := sm.MapRange()
+						for iter.Next() {
+							val := iter.Value()
 							val = reflect.ValueOf(append([]byte{}, val.Bytes()...))
-							dm.SetMapIndex(key, val)
+							dm.SetMapIndex(iter.Key(), val)
 						}
 					default: // Basic type (e.g., string)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
-							dm.SetMapIndex(key, val)
+						iter := sm.MapRange()
+						for iter.Next() {
+							dm.SetMapIndex(iter.Key(), iter.Value())
 						}
 					}
 				}

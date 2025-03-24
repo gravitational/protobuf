@@ -2541,9 +2541,10 @@ func makeMapMarshaler(f *reflect.StructField) (sizer, marshaler) {
 	return func(ptr pointer, tagsize int) int {
 			m := ptr.asPointerTo(t).Elem() // the map
 			n := 0
-			for _, k := range m.MapKeys() {
-				ki := k.Interface()
-				vi := m.MapIndex(k).Interface()
+			iter := m.MapRange()
+			for iter.Next() {
+				ki := iter.Key().Interface()
+				vi := iter.Value().Interface()
 				kaddr := toAddrPointer(&ki, false)             // pointer to key
 				vaddr := toAddrPointer(&vi, valIsPtr)          // pointer to value
 				siz := keySizer(kaddr, 1) + valSizer(vaddr, 1) // tag of key = 1 (size=1), tag of val = 2 (size=1)

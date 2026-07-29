@@ -589,10 +589,11 @@ func (mi *mergeInfo) computeMergeInfo() {
 				}
 			}
 		case reflect.Map:
-			switch {
-			case isPointer || isSlice:
-				panic("bad pointer or slice in map case in " + tf.Name())
-			default: // E.g., map[K]V
+			if isPointer || isSlice {
+				panic("bad pointer or slice in map case in " + tf.String())
+			}
+			switch tfElem := tf.Elem(); tfElem.Kind() {
+			case reflect.Pointer: // Proto struct (e.g., map[K]*T)
 				mfi.merge = func(dst, src pointer) {
 					sm := src.asPointerTo(tf).Elem()
 					if sm.Len() == 0 {
@@ -600,27 +601,55 @@ func (mi *mergeInfo) computeMergeInfo() {
 					}
 					dm := dst.asPointerTo(tf).Elem()
 					if dm.IsNil() {
-						dm.Set(reflect.MakeMap(tf))
+						dm.Set(reflect.MakeMapWithSize(tf, sm.Len()))
+					}
+					for mr := sm.MapRange(); mr.Next(); {
+						key, val := mr.Key(), mr.Value()
+						val = reflect.ValueOf(Clone(val.Interface().(Message)))
+						dm.SetMapIndex(key, val)
+					}
+				}
+			case reflect.Slice: // normally just map[K][]byte but casttype can do whatever
+				switch tfElem.Elem().Kind() {
+				case
+					reflect.Bool,
+					reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+					reflect.Uintptr,
+					reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
+					reflect.String:
+				default:
+					panic("cannot clone map with value type " + tfElem.String())
+				}
+				mfi.merge = func(dst, src pointer) {
+					sm := src.asPointerTo(tf).Elem()
+					if sm.Len() == 0 {
+						return
+					}
+					dm := dst.asPointerTo(tf).Elem()
+					if dm.IsNil() {
+						dm.Set(reflect.MakeMapWithSize(tf, sm.Len()))
+					}
+					for mr := sm.MapRange(); mr.Next(); {
+						key, val := mr.Key(), mr.Value()
+						newVal := reflect.MakeSlice(tfElem, val.Len(), val.Len())
+						reflect.Copy(newVal, val)
+						dm.SetMapIndex(key, newVal)
+					}
+				}
+			default: // Basic type (e.g., map[K]string)
+				mfi.merge = func(dst, src pointer) {
+					sm := src.asPointerTo(tf).Elem()
+					if sm.Len() == 0 {
+						return
+					}
+					dm := dst.asPointerTo(tf).Elem()
+					if dm.IsNil() {
+						dm.Set(reflect.MakeMapWithSize(tf, sm.Len()))
 					}
 
-					switch tf.Elem().Kind() {
-					case reflect.Ptr: // Proto struct (e.g., *T)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
-							val = reflect.ValueOf(Clone(val.Interface().(Message)))
-							dm.SetMapIndex(key, val)
-						}
-					case reflect.Slice: // E.g. Bytes type (e.g., []byte)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
-							val = reflect.ValueOf(append([]byte{}, val.Bytes()...))
-							dm.SetMapIndex(key, val)
-						}
-					default: // Basic type (e.g., string)
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
-							dm.SetMapIndex(key, val)
-						}
+					for mr := sm.MapRange(); mr.Next(); {
+						dm.SetMapIndex(mr.Key(), mr.Value())
 					}
 				}
 			}

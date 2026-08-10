@@ -170,13 +170,14 @@ func equalAny(v1, v2 reflect.Value, prop *Properties) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
-		for _, key := range v1.MapKeys() {
-			val2 := v2.MapIndex(key)
+		iter := v1.MapRange()
+		for iter.Next() {
+			val2 := iter.Value()
 			if !val2.IsValid() {
 				// This key was not found in the second map.
 				return false
 			}
-			if !equalAny(v1.MapIndex(key), val2, nil) {
+			if !equalAny(v1.MapIndex(iter.Key()), val2, nil) {
 				return false
 			}
 		}

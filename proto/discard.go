@@ -204,8 +204,9 @@ func (di *discardInfo) computeDiscardInfo() {
 						if sm.Len() == 0 {
 							return
 						}
-						for _, key := range sm.MapKeys() {
-							val := sm.MapIndex(key)
+						iter := sm.MapRange()
+						for iter.Next() {
+							val := iter.Value()
 							DiscardUnknown(val.Interface().(Message))
 						}
 					}
@@ -303,8 +304,9 @@ func discardLegacy(m Message) {
 			default: // E.g., map[K]V
 				tv := vf.Type().Elem()
 				if tv.Kind() == reflect.Ptr && tv.Implements(protoMessageType) { // Proto struct (e.g., *T)
-					for _, key := range vf.MapKeys() {
-						val := vf.MapIndex(key)
+					iter := vf.MapRange()
+					for iter.Next() {
+						val := iter.Value()
 						discardLegacy(val.Interface().(Message))
 					}
 				}

@@ -179,19 +179,20 @@ func mergeAny(out, in reflect.Value, viaPtr bool, prop *Properties) {
 		}
 		// For maps with value types of *T or []byte we need to deep copy each value.
 		elemKind := in.Type().Elem().Kind()
-		for _, key := range in.MapKeys() {
+		iter := in.MapRange()
+		for iter.Next() {
 			var val reflect.Value
 			switch elemKind {
 			case reflect.Ptr:
 				val = reflect.New(in.Type().Elem().Elem())
-				mergeAny(val, in.MapIndex(key), false, nil)
+				mergeAny(val, iter.Key(), false, nil)
 			case reflect.Slice:
-				val = in.MapIndex(key)
+				val = iter.Value()
 				val = reflect.ValueOf(append([]byte{}, val.Bytes()...))
 			default:
-				val = in.MapIndex(key)
+				val = iter.Value()
 			}
-			out.SetMapIndex(key, val)
+			out.SetMapIndex(iter.Key(), val)
 		}
 	case reflect.Ptr:
 		if in.IsNil() {
